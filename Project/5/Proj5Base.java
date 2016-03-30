@@ -8,13 +8,27 @@
  * 
  */
 
+ 
+
+
 import java.io.*;
 import java.util.*;
 
 public class Proj5Base
 {
+  public static boolean debug;
+
   public static void main (String[] args)
   {
+
+    debug = false;
+
+    for (int i = 0; i < args.length; ++i) {
+      if (args[i].equals("-d")) {
+        debug = true;
+      }
+    }
+
     Token inputToken;
     TokenReader tr = new TokenReader();
     
@@ -55,13 +69,54 @@ public class Proj5Base
   return;
     
   }
+
+  public static int popAndEval(Stack ops, Stack vals) {
+
+    if (vals.isEmpty()) {
+      System.out.print("ERROR: Stack empty when attempting to popAndEval\n");
+      return -999;
+    } 
+
+    char op = ops.top().getToken().getOperator();
+    ops.pop();
+    int val2 = vals.top().getVal();
+    vals.pop();
+    int val1 = vals.top().getVal();
+    vals.pop();
+
+    if (op != '*' && op != '/' && op != '+' && op != '-') {
+      return -999;
+    }
+
+    int v3 = eval( val1, op, val2);
+
+    vals.push(new Node(v3));
+
+    return 1;
+  }
+
+  public static int eval(int v1, char op, int v2) {
+    if (op == '+') {
+      return v1+v2;
+    } else if (op == '-') {
+      return v1-v2;
+    } else if (op == '*') {
+      return v1*v2;
+    } else if (op == '/') {
+      return v1/v2;
+    } else {
+      System.out.println("ERROR: Eval operator is not valid");
+    }
+
+    return -999;
+  }
   
 public static void processExpression (Token inputToken, TokenReader tr)
 {
  /**********************************************/
  /* Declare both stack head pointers here      */
- public Stack vals;
- public Stack ops;
+ Stack vals = new Stack();
+ Stack ops = new Stack();
 
 
  /* Loop until the expression reaches its End */
@@ -71,9 +126,41 @@ public static void processExpression (Token inputToken, TokenReader tr)
     if (inputToken.equalsType(TokenType.OPERATOR))
       {
        /* make this a debugMode statement */
-       System.out.print ("OP: " + inputToken.getOperator() + ", ");
+       if (debug) {
+        System.out.print ("OP: " + inputToken.getOperator() + ", ");
+      }
 
-       // add code to perform this operation here
+       if (inputToken.equalsOperator('(')) {
+        ops.push(new Node(inputToken));
+       }
+       if (inputToken.equalsOperator('+') || inputToken.equalsOperator('-')) {
+        while (!ops.isEmpty() && 
+          !ops.top().getToken().equalsOperator(')') && 
+          !ops.top().getToken().equalsOperator('(')) {
+          popAndEval(ops,vals);
+        }
+        ops.push(new Node(inputToken));
+       }
+
+       if (inputToken.equalsOperator('*') || inputToken.equalsOperator('/')) {
+        while (!ops.isEmpty() && 
+          (ops.top().getToken().equalsOperator('*') || ops.top().getToken().equalsOperator('/'))) {
+          popAndEval(ops,vals);
+        }
+        ops.push(new Node(inputToken));
+       }
+
+       if (inputToken.equalsOperator(')')) {
+        while (!ops.isEmpty() && !ops.top().getToken().equalsOperator('(')) {
+          popAndEval(ops,vals);
+        }
+
+        if (ops.isEmpty()) {
+          System.out.println("ERROR: STACK EMPTY (error at line 102)");
+        } else {
+          ops.pop();
+        }
+       }
 
       }
 
@@ -81,15 +168,30 @@ public static void processExpression (Token inputToken, TokenReader tr)
     else if (inputToken.equalsType(TokenType.VALUE))
       {
        /* make this a debugMode statement */
+       if (debug){
        System.out.print ("Val: " + inputToken.getValue() + ", "); 
+     }
 
-       // add code to perform this operation here
+
+       vals.push(
+        new Node(
+          inputToken.getValue()
+          )
+        );
 
       }
    
     /* get next token from input */
     inputToken = tr.getNextToken ();
+   }
+   while (!ops.isEmpty()) {
+    popAndEval(ops,vals);
    } 
+   System.out.println("Top of ValueStack expression: " + vals.top().getVal());
+   vals.pop();
+   if (!vals.isEmpty()) {
+    System.out.println("ERROR: At least one value left over after evaluating expression");
+   }
 
  /* The expression has reached its end */
 
